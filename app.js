@@ -156,11 +156,6 @@ function remainingCount(habit, days) {
   return days.length - done;
 }
 
-function remainingLabel(remaining) {
-  if (remaining === 0) return "All done";
-  return remaining === 1 ? "1 task left" : `${remaining} tasks left`;
-}
-
 /* -------------------------------------------------------------- rendering -- */
 
 function buildHeadRow(days, todayKey) {
@@ -192,7 +187,7 @@ function buildHeadRow(days, todayKey) {
   const remaining = document.createElement("th");
   remaining.scope = "col";
   remaining.className = "grid__remaining-head";
-  remaining.textContent = "Left";
+  remaining.textContent = "Tasks Left";
 
   const actions = document.createElement("th");
   actions.scope = "col";
@@ -243,7 +238,9 @@ function buildHabitRow(habit, days, todayKey) {
   remainingCell.className = remaining === 0
     ? "habit__remaining habit__remaining--clear"
     : "habit__remaining";
-  remainingCell.textContent = remainingLabel(remaining);
+  // Bare number: the frozen "Tasks Left" column header is what names it, both on
+  // screen and for a screen reader following the scope="col" association.
+  remainingCell.textContent = String(remaining);
   row.append(remainingCell);
 
   const actions = document.createElement("td");

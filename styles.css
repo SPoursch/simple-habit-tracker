@@ -130,16 +130,37 @@ body {
 /* -------------------------------------------------------------- 7-day grid -- */
 
 /* Seven columns plus a name and a Delete button outgrow a narrow phone, so the
-   grid scrolls inside its own box rather than pushing the page sideways. */
+   grid scrolls inside its own box rather than pushing the page sideways.
+
+   The height cap is what makes the frozen header work: a sticky cell sticks to its
+   nearest scrolling ancestor, and this wrapper is already one (overflow on either
+   axis makes both a scroll container). Without a max-height it would never scroll
+   vertically itself, the page would scroll instead, and the header would slide
+   away out of reach of top: 0. */
 .grid-wrap {
   margin: 1.5rem 0 0;
-  overflow-x: auto;
+  max-height: 70vh;
+  overflow: auto;
 }
 
 .grid {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0 0.5rem;
+}
+
+/* The header stays put while the habit rows scroll under it, so the bare numbers
+   in the Tasks Left column always have their heading in view.
+
+   The shadow is not decoration: border-spacing leaves a 0.5rem transparent gap
+   below the header, and a row scrolling past would otherwise show through it. The
+   shadow paints that gap in the page colour. */
+.grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--page);
+  box-shadow: 0 0.5rem 0 var(--page);
 }
 
 .grid__corner {
@@ -216,7 +237,7 @@ body {
 
 .grid__remaining-head {
   padding: 0 0.5rem 0.5rem;
-  text-align: right;
+  text-align: center;
   color: var(--text-muted);
   font-size: 0.75rem;
   font-weight: 600;
@@ -225,15 +246,16 @@ body {
 }
 
 /* The count is the row's summary, so it sits with the days it counts rather than
-   next to the Delete button, and never wraps mid-phrase. */
+   next to the Delete button. Tabular figures keep the digits in a straight line
+   down the column. */
 .habit__remaining {
   padding-left: 0.75rem;
-  padding-right: 0.5rem;
-  text-align: right;
-  white-space: nowrap;
-  color: var(--text-muted);
-  font-size: 0.8125rem;
+  padding-right: 0.75rem;
+  text-align: center;
+  color: var(--text);
+  font-size: 1rem;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .habit__remaining--clear {
