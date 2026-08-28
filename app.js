@@ -143,6 +143,19 @@ function recentDays(count) {
   return days;
 }
 
+/* -------------------------------------------------------------- remaining -- */
+
+// One task per visible day, so what is left for a habit is the days on show that
+// it has not been marked done on. Counted over the window rather than over all of
+// completions, so a habit kept for months still reads against the same 7 days.
+function remainingCount(habit, days) {
+  const done = days.reduce(
+    (count, day) => count + (habit.completions.includes(dateKey(day)) ? 1 : 0),
+    0
+  );
+  return days.length - done;
+}
+
 /* -------------------------------------------------------------- rendering -- */
 
 function buildHeadRow(days, todayKey) {
@@ -171,6 +184,11 @@ function buildHeadRow(days, todayKey) {
     return head;
   });
 
+  const remaining = document.createElement("th");
+  remaining.scope = "col";
+  remaining.className = "grid__remaining-head";
+  remaining.textContent = "Tasks Left";
+
   const actions = document.createElement("th");
   actions.scope = "col";
   const actionsLabel = document.createElement("span");
@@ -178,7 +196,7 @@ function buildHeadRow(days, todayKey) {
   actionsLabel.textContent = "Actions";
   actions.append(actionsLabel);
 
-  return [corner, ...dayHeads, actions];
+  return [corner, ...dayHeads, remaining, actions];
 }
 
 function buildHabitRow(habit, days, todayKey) {
@@ -214,6 +232,16 @@ function buildHabitRow(habit, days, todayKey) {
     cell.append(toggle);
     row.append(cell);
   }
+
+  const remaining = remainingCount(habit, days);
+  const remainingCell = document.createElement("td");
+  remainingCell.className = remaining === 0
+    ? "habit__remaining habit__remaining--clear"
+    : "habit__remaining";
+  // Bare number: the frozen "Tasks Left" column header is what names it, both on
+  // screen and for a screen reader following the scope="col" association.
+  remainingCell.textContent = String(remaining);
+  row.append(remainingCell);
 
   const actions = document.createElement("td");
   actions.className = "grid__actions";
