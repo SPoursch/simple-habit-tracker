@@ -32,8 +32,10 @@ body {
   font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+/* The Left column needs room the 7 days did not: at 34rem the habit names started
+   wrapping and the rows lost their even height. */
 .app {
-  max-width: 34rem;
+  max-width: 40rem;
   margin: 0 auto;
 }
 
@@ -210,6 +212,32 @@ body {
    so the heading still reads as a heading. */
 .habit .grid__cell--today {
   background: var(--today);
+}
+
+.grid__remaining-head {
+  padding: 0 0.5rem 0.5rem;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* The count is the row's summary, so it sits with the days it counts rather than
+   next to the Delete button, and never wraps mid-phrase. */
+.habit__remaining {
+  padding-left: 0.75rem;
+  padding-right: 0.5rem;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.habit__remaining--clear {
+  color: var(--done);
 }
 
 .grid__actions {
