@@ -4,11 +4,15 @@
 
 const STORAGE_KEY = "habit-tracker/v1";
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const DAYS_SHOWN = 7;
 
 // Built from local date parts. toISOString() would convert to UTC and record the
 // wrong day for anyone behind or ahead of UTC near midnight.
 const dateKey = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+const longDate = (d) =>
+  d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
 
 function emptyState() {
   return { version: 1, habits: [] };
@@ -96,7 +100,9 @@ const todayLabel = document.getElementById("today-label");
 const addForm = document.getElementById("add-form");
 const nameInput = document.getElementById("habit-name");
 const notice = document.getElementById("notice");
-const habitList = document.getElementById("habit-list");
+const gridWrap = document.getElementById("grid-wrap");
+const gridHead = document.getElementById("grid-head");
+const habitRows = document.getElementById("habit-rows");
 const emptyStateMessage = document.getElementById("empty-state");
 
 /* ---------------------------------------------------------------- notices -- */
@@ -120,35 +126,97 @@ function persist() {
   }
 }
 
+/* ------------------------------------------------------------------- days -- */
+
+// The visible columns, oldest first and ending today. Stepping from midday keeps
+// a daylight-saving changeover from pushing a date onto the neighbouring day.
+function recentDays(count) {
+  const anchor = new Date();
+  anchor.setHours(12, 0, 0, 0);
+
+  const days = [];
+  for (let back = count - 1; back >= 0; back -= 1) {
+    const day = new Date(anchor);
+    day.setDate(anchor.getDate() - back);
+    days.push(day);
+  }
+  return days;
+}
+
 /* -------------------------------------------------------------- rendering -- */
 
-function buildHabitItem(habit, today) {
-  const isDone = habit.completions.includes(today);
+function buildHeadRow(days, todayKey) {
+  const corner = document.createElement("th");
+  corner.scope = "col";
+  corner.className = "grid__corner";
+  corner.textContent = "Habit";
 
-  const item = document.createElement("li");
-  item.className = isDone ? "habit habit--done" : "habit";
-  item.dataset.id = habit.id;
+  const dayHeads = days.map((day) => {
+    const isToday = dateKey(day) === todayKey;
 
-  const label = document.createElement("label");
-  label.className = "habit__label";
+    const head = document.createElement("th");
+    head.scope = "col";
+    head.className = isToday ? "grid__day grid__day--today" : "grid__day";
+    if (isToday) head.setAttribute("aria-current", "date");
 
-  const checkbox = document.createElement("input");
-  checkbox.type = "checkbox";
-  checkbox.className = "habit__checkbox";
-  checkbox.checked = isDone;
-  checkbox.dataset.action = "toggle";
-  checkbox.dataset.id = habit.id;
+    const weekday = document.createElement("span");
+    weekday.className = "grid__weekday";
+    weekday.textContent = day.toLocaleDateString(undefined, { weekday: "short" });
+
+    const number = document.createElement("span");
+    number.className = "grid__daynum";
+    number.textContent = String(day.getDate());
+
+    head.append(weekday, number);
+    return head;
+  });
+
+  const actions = document.createElement("th");
+  actions.scope = "col";
+  const actionsLabel = document.createElement("span");
+  actionsLabel.className = "sr-only";
+  actionsLabel.textContent = "Actions";
+  actions.append(actionsLabel);
+
+  return [corner, ...dayHeads, actions];
+}
+
+function buildHabitRow(habit, days, todayKey) {
+  const row = document.createElement("tr");
+  row.className = "habit";
+  row.dataset.id = habit.id;
 
   // textContent, never innerHTML, so a name containing < or & renders literally.
-  const name = document.createElement("span");
+  const name = document.createElement("th");
+  name.scope = "row";
   name.className = "habit__name";
   name.textContent = habit.name;
+  row.append(name);
 
-  label.append(checkbox, name);
+  for (const day of days) {
+    const key = dateKey(day);
+    const isDone = habit.completions.includes(key);
+    const isToday = key === todayKey;
 
-  const status = document.createElement("span");
-  status.className = "habit__status";
-  status.textContent = isDone ? "Done today" : "Not done";
+    const cell = document.createElement("td");
+    cell.className = isToday ? "grid__cell grid__cell--today" : "grid__cell";
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "day";
+    toggle.dataset.action = "toggle";
+    toggle.dataset.id = habit.id;
+    toggle.dataset.date = key;
+    toggle.setAttribute("aria-pressed", String(isDone));
+    toggle.setAttribute("aria-label", `${habit.name} on ${longDate(day)}`);
+    if (isDone) toggle.textContent = "✓";
+
+    cell.append(toggle);
+    row.append(cell);
+  }
+
+  const actions = document.createElement("td");
+  actions.className = "grid__actions";
 
   const deleteButton = document.createElement("button");
   deleteButton.type = "button";
@@ -158,26 +226,31 @@ function buildHabitItem(habit, today) {
   deleteButton.textContent = "Delete";
   deleteButton.setAttribute("aria-label", `Delete habit: ${habit.name}`);
 
-  item.append(label, status, deleteButton);
-  return item;
+  actions.append(deleteButton);
+  row.append(actions);
+
+  return row;
 }
 
 // State is the single source of truth: every change mutates state, persists, then
-// redraws the list from scratch.
+// redraws the grid from scratch.
 function render() {
-  const today = new Date();
+  const days = recentDays(DAYS_SHOWN);
+  const today = days[days.length - 1];
   const todayKey = dateKey(today);
 
-  todayLabel.textContent = `Today, ${today.toLocaleDateString(undefined, {
-    weekday: "long",
-    day: "numeric",
-    month: "long"
-  })}`;
+  todayLabel.textContent = `Today, ${longDate(today)}`;
 
-  habitList.replaceChildren(
-    ...state.habits.map((habit) => buildHabitItem(habit, todayKey))
+  gridHead.replaceChildren(...buildHeadRow(days, todayKey));
+  habitRows.replaceChildren(
+    ...state.habits.map((habit) => buildHabitRow(habit, days, todayKey))
   );
-  emptyStateMessage.hidden = state.habits.length > 0;
+
+  // A lone header row over nothing reads as a glitch, so the whole grid gives way
+  // to the empty state.
+  const hasHabits = state.habits.length > 0;
+  gridWrap.hidden = !hasHabits;
+  emptyStateMessage.hidden = hasHabits;
 }
 
 /* ---------------------------------------------------------------- actions -- */
@@ -201,17 +274,18 @@ function addHabit(rawName) {
   return true;
 }
 
-// Completion is read from state, never from the checkbox, so the stored data
-// decides what is true and the re-render puts the checkbox back in sync.
-function toggleCompletion(id) {
+// Completion is read from state, never from the button, so the stored data decides
+// what is true and the re-render puts the cell back in sync.
+function toggleCompletion(id, key) {
+  if (!DATE_KEY_PATTERN.test(key)) return;
+
   const habit = state.habits.find((candidate) => candidate.id === id);
   if (!habit) return;
 
-  const todayKey = dateKey(new Date());
-  if (habit.completions.includes(todayKey)) {
-    habit.completions = habit.completions.filter((key) => key !== todayKey);
+  if (habit.completions.includes(key)) {
+    habit.completions = habit.completions.filter((completed) => completed !== key);
   } else {
-    habit.completions = [...habit.completions, todayKey].sort();
+    habit.completions = [...habit.completions, key].sort();
   }
 
   persist();
@@ -237,17 +311,14 @@ addForm.addEventListener("submit", (event) => {
   nameInput.focus();
 });
 
-// Delegated from the list, so rows redrawn by render() need no rebinding.
-habitList.addEventListener("change", (event) => {
-  const target = event.target;
-  if (target instanceof HTMLInputElement && target.dataset.action === "toggle") {
-    toggleCompletion(target.dataset.id);
-  }
-});
+// Delegated from the table body, so rows redrawn by render() need no rebinding.
+habitRows.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-action]");
+  if (!button) return;
 
-habitList.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-action='delete']");
-  if (button) {
+  if (button.dataset.action === "toggle") {
+    toggleCompletion(button.dataset.id, button.dataset.date);
+  } else if (button.dataset.action === "delete") {
     deleteHabit(button.dataset.id);
   }
 });

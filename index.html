@@ -26,7 +26,18 @@
 
     <p class="notice" id="notice" role="alert" hidden></p>
 
-    <ul class="habit-list" id="habit-list"></ul>
+    <!-- Head row and body rows are both drawn by app.js: the seven day columns
+         shift forward as the date changes, so neither can be static markup. -->
+    <div class="grid-wrap" id="grid-wrap" hidden>
+      <table class="grid">
+        <caption class="sr-only">Habit completions over the last 7 days</caption>
+        <thead>
+          <tr id="grid-head"></tr>
+        </thead>
+        <tbody id="habit-rows"></tbody>
+      </table>
+    </div>
+
     <p class="empty-state" id="empty-state" hidden>
       No habits yet. Add your first one above.
     </p>
